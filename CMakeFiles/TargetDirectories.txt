@@ -1,0 +1,4 @@
+/home/vito/11vo semestre/Procesamiento y Análisis de Imágenes/Tarea 2/CMakeFiles/funciones.dir
+/home/vito/11vo semestre/Procesamiento y Análisis de Imágenes/Tarea 2/CMakeFiles/graph.dir
+/home/vito/11vo semestre/Procesamiento y Análisis de Imágenes/Tarea 2/CMakeFiles/main.dir
+/home/vito/11vo semestre/Procesamiento y Análisis de Imágenes/Tarea 2/CMakeFiles/mst.dir

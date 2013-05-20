@@ -1,0 +1,2 @@
+/usr/bin/ar cr libfunciones.a  CMakeFiles/funciones.dir/funciones.cpp.o
+/usr/bin/ranlib libfunciones.a
