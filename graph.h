@@ -7,15 +7,15 @@ class Node
 vector<int> neighbors;
 vector<int> edges;
 int index;
-int indexGraph;
+int indexComponent;
 public:
 	Node();
 	vector<int> getNeighbors();
 	void addNeighbor(int neighbor);
 	int getIndex();
 	void setIndex(int ind);
-	int getIndexGraph();
-	void setIndexGraph(int ind);
+	int getIndexComponent();
+	void setIndexComponent(int ind);
 	void addEdge(int edge);
 	vector<int> getEdges();
 };

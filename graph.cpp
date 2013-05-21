@@ -28,12 +28,12 @@ void Node::setIndex(int ind){
 	index = ind;
 }
 
-int Node::getIndexGraph(){
-	return indexGraph;
+int Node::getIndexComponent(){
+    return indexComponent;
 }
 
-void Node::setIndexGraph(int ind){
-	indexGraph = ind;
+void Node::setIndexComponent(int ind){
+    indexComponent = ind;
 }
 
 vector<int> Node::getEdges() {

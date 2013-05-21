@@ -9,44 +9,64 @@
 using namespace std;
 using namespace cv;
 
+Component::Component(){}
+
+vector<int> Component::getNodes() {
+    return nodes;
+}
+
+void Component::addNodes(int node) {
+    nodes.push_back(node);
+}
+
+int Component::getIndex() {
+    return index;
+}
+
+void Component::setIndex(int ind) {
+    index = ind;
+}
+
+/*------------------------------------------------------------------------------*/
 
 Segmentation::Segmentation(){}
 
-vector<Graph> Segmentation::getComponents(){
+vector<Component> Segmentation::getComponents(){
 	return components;
 }
 
-void Segmentation::addComponent(Graph g){
-	components.push_back(g);
+void Segmentation::addComponent(Component c){
+    components.push_back(c);
 }
 
-bool Segmentation::areDisjoint(Graph g1, Graph g2, int k){
+bool Segmentation::areDisjoint(Component c1, Component c2, int k){
 	bool areDisjoint = false;
 
 	return areDisjoint;
 }
 
-Graph Segmentation::joinComponents(Graph g1, Graph g2){
-
+Component Segmentation::joinComponents(Component c1, Component c2){
+    return c1;
 }
 
-int Segmentation::getDiffComponents(Graph g1, Graph g2, Graph& graph){
+int Segmentation::getDiffComponents(Component c1, Component c2, Graph& graph){
 	int min = 5000;
 
-	int index2 = g2.getIndex();
+    int index2 = c2.getIndex();
 
-	vector<Node>& g1Nodes = g1.getNodes();
-	vector<Node>& graphNodes = graph.getNodes();
-	vector<Edge>& graphEdges = graph.getEdges();
+    vector<int> c1Nodes = c1.getNodes();
+    vector<Node> graphNodes = graph.getNodes();
+    vector<Edge> graphEdges = graph.getEdges();
 
-	for(int i = 0; i < g1Nodes.size(); i++){
-		vector<char>& g1NodeEdges = g1Nodes[i].getEdges();
+    for(int i = 0; i < c1Nodes.size(); i++){
+        Node c1Node = graphNodes[c1Nodes[i]];
+        vector<int> c1NodeEdges = c1Node.getEdges();
 
-		for(int j = 0; j < g1NodeEdges; j++){
-			Edge g1edg = g1NodeEdges[graphEdges[j]];
-			vector<int> nodes  = g1edg.getNodes();
+        for(int j = 0; j < c1NodeEdges.size(); j++){
+            Edge c1edg = graphEdges[c1NodeEdges[j]];
+            vector<int> nodes  = c1edg.getNodes();
 			int index;
-			if(g1Nodes[i].getIndex() != nodes[0]){
+            if(c1Node.getIndex() != nodes[0]){
 				index = graphNodes[nodes[0]].getIndex();
 			}
 			else{
@@ -54,8 +74,8 @@ int Segmentation::getDiffComponents(Graph g1, Graph g2, Graph& graph){
 			}
 
 			if(index == index2)
-				if(g1edg.getWeight() < min)
-					min = g1edg.getWeight();
+                if(c1edg.getWeight() < min)
+                    min = c1edg.getWeight();
 		}
 	}
 

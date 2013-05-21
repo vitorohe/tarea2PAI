@@ -3,16 +3,30 @@
 
 using namespace cv;
 
+class Component
+{
+
+vector<int> nodes;
+int index;
+
+public:
+	Component();
+	vector<int> getNodes();
+	void addNodes(int node);
+	void setIndex(int ind);
+	int getIndex();
+};
+
 class Segmentation
 {
 
-vector<Graph> components;
+vector<Component> components;
 
 public:
 	Segmentation();
-	vector<Graph> getComponents();
-	void addComponent(Graph g);
-	bool areDisjoint(Graph g1, Graph g2);
-	Graph joinComponents(Graph g1, Graph g2);
-
+	vector<Component> getComponents();
+	void addComponent(Component c);
+	bool areDisjoint(Component c1, Component c2, int k);
+	Component joinComponents(Component c1, Component c2);
+	int getDiffComponents(Component c1, Component c2, Graph& graph);
 };
