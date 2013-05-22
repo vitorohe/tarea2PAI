@@ -10,7 +10,9 @@ using namespace std;
 using namespace cv;
 
 
-Node::Node(){}
+Node::Node(){
+	setSelected(false);
+}
 
 vector<int> Node::getNeighbors(){
 	return neighbors;
@@ -44,9 +46,26 @@ void Node::addEdge(int edge) {
 	edges.push_back(edge);
 }
 
+void Node::setSelected(bool sel){
+	selected = sel;
+}
+
+bool Node::isSelected(){
+	return selected;
+}
+
+void Node::setValue(int val){
+	value = val;
+}
+
+int Node::getValue(){
+	return value;
+}
 
 
-Edge::Edge(){}
+Edge::Edge(){
+	setSelected(false);
+}
 
 int Edge::getIndex(){
 	return index;
@@ -76,6 +95,14 @@ bool Edge::compareEdges(Edge edge1, Edge edge2){
 	return edge1.getWeight() < edge2.getWeight();
 }
 
+void Edge::setSelected(bool sel){
+	selected = sel;
+}
+
+bool Edge::isSelected(){
+	return selected;
+}
+
 Graph::Graph(){}
 
 void Graph::createGraph(Mat input) {
@@ -90,6 +117,7 @@ void Graph::createGraph(Mat input) {
 		{
 			Node node = Node();
 			node.setIndex(k++);
+			node.setValue((int)input.at<uchar>(i,j));
 			nodes.push_back(node);
 		}
 	}
@@ -220,4 +248,9 @@ int Graph::getIndex(){
 
 void Graph::setIndex(int ind){
 	index = ind;
+}
+
+void Graph::setNodeIndexComponent(int n, int k){
+	Node& node = nodes[n];
+	node.setIndexComponent(k);
 }

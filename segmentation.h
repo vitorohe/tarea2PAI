@@ -26,7 +26,9 @@ public:
 	Segmentation();
 	vector<Component> getComponents();
 	void addComponent(Component c);
-	bool areDisjoint(Component c1, Component c2, int k);
+	bool areDisjoint(Component& c1, Component& c2, float k, Graph& graph);
 	Component joinComponents(Component c1, Component c2);
-	int getDiffComponents(Component c1, Component c2, Graph& graph);
+	static float getMInt(Component& c1, Component& c2, float k, Graph& graph);
+	static int getDiffComponents(Component& c1, Component& c2, Graph& graph);
+	static int getMaxEdgeMST(Component& c, Graph& graph);
 };

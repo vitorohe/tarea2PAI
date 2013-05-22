@@ -8,6 +8,8 @@ vector<int> neighbors;
 vector<int> edges;
 int index;
 int indexComponent;
+bool selected;
+int value;
 public:
 	Node();
 	vector<int> getNeighbors();
@@ -18,6 +20,10 @@ public:
 	void setIndexComponent(int ind);
 	void addEdge(int edge);
 	vector<int> getEdges();
+	void setSelected(bool sel);
+	bool isSelected();
+	void setValue(int val);
+	int getValue();
 };
 
 
@@ -26,6 +32,7 @@ class Edge
 int index;
 int weight;
 vector<int> nodes;
+bool selected;
 public:
 	Edge();
 	int getIndex();
@@ -35,6 +42,8 @@ public:
 	void addNode(int node);
 	vector<int> getNodes();
 	static bool compareEdges(Edge edge1, Edge edge2);
+	void setSelected(bool sel);
+	bool isSelected();
 };
 
 
@@ -53,5 +62,6 @@ public:
 	vector<Edge> getEdges();
 	int getIndex();
 	void setIndex(int ind);
+	void setNodeIndexComponent(int node, int k);
 	
 };
