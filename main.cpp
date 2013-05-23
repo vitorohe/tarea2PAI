@@ -68,7 +68,7 @@ void segmentarManos(string filename, int type){
 	vector<Mat> channels(3);
 
 	split(imagen,channels);
-	medianBlur(channels[0], channels[0], 5);
+	GaussianBlur(channels[0], channels[0], Size(5,5), 0.8, 0.8, BORDER_DEFAULT);
 
     Graph graph = Graph();
     graph.createGraph(channels[0]);
@@ -90,7 +90,7 @@ void segmentarManos(string filename, int type){
         for (int j = 0; j < width; ++j) {
             Component ck = Component();
             ck.setIndex(k);
-            ck.addNodes(k);
+            ck.addNode(k);
             S0.addComponent(ck);
             graph.setNodeIndexComponent(k,k);
             k++;
@@ -99,10 +99,16 @@ void segmentarManos(string filename, int type){
 
     vector<Component> components;
     Segmentation S = S0;
+    int size = 0;
     for (int q = 0; q < edgesG.size(); q++) {
     // for (int q = 0; q < 4; q++) {
+
+        if(S.getComponents().size() != size){
+            components = S.getComponents();
+        }
+        size = components.size();
     	vector<Node> nodesG = graph.getNodes();
-    	components = S.getComponents();
+    	
     	// cout<<"comps size "<<components.size()<<endl;
         Edge edge = edgesG[q];
     	// cout<<"Analizing components related to edge "<<edge.getIndex()<<endl;
@@ -113,10 +119,12 @@ void segmentarManos(string filename, int type){
         // cout<<"comp indexes "<<node1.getIndexComponent()<<", "<<node2.getIndexComponent()<<endl;
         if(node1.getIndexComponent() != node2.getIndexComponent()) {
 
-            Component c1 = components[node1.getIndexComponent()];
-            Component c2 = components[node2.getIndexComponent()];
+            Component& c1 = components[node1.getIndexComponent()];
+            Component& c2 = components[node2.getIndexComponent()];
             // cout<<"comps index2 "<<c1.getIndex()<<", "<<c2.getIndex()<<endl;
-            if(!S.areDisjoint(c1,c2,300,graph)) {
+            // cout<<"Antes de max edge mst 1 "<<c1.getMaxEdgeMST()<<" "<<c1.getIndex()<<endl;
+            // cout<<"Antes de max edge mst 2 "<<c2.getMaxEdgeMST()<<" "<<c2.getIndex()<<endl;
+            if(!S.areDisjoint(c1,c2,50,graph)) {
                 Component new_c1 = S.joinComponents(c1,c2);
                 // cout<<"Components were joined"<<endl;
                 int indexc1 = c1.getIndex();
@@ -129,25 +137,92 @@ void segmentarManos(string filename, int type){
                 {
                 	if(i == indexc1) {
                 		new_c1.setIndex(k++);
+                        // updateNodeIndexComponent(new_c1,k-1,graph);
+                        for (int j = 0; j < new_c1.getNodes().size(); ++j)
+                        {
+                            graph.setNodeIndexComponent(new_c1.getNodes()[j],new_c1.getIndex());
+                        }
                 		Saux.addComponent(new_c1);
-                		updateNodeIndexComponent(new_c1,k-1,graph);
                 	} else if(i != indexc2){
-                		Component c = components[i];
+                		Component& c = components[i];
                 		c.setIndex(k++);
+                        // updateNodeIndexComponent(c,k-1,graph);
+                        for (int j = 0; j < c.getNodes().size(); ++j)
+                        {
+                            graph.setNodeIndexComponent(c.getNodes()[j],c.getIndex());
+                        }
                 		Saux.addComponent(c);
-                		updateNodeIndexComponent(c,k-1,graph);
                 	}
 
                 }
 
                 S = Saux;
             }
+            // else{
+            //     cout<<"max edge mst 1 "<<c1.getMaxEdgeMST()<<endl;
+            //     cout<<"max edge mst 2 "<<c2.getMaxEdgeMST()<<endl;
+            // }
 
         }
     }
 
     showImageSegmented(S,graph,width,height);
 
+}
+
+void tryMST(){
+
+    Mat mst = (Mat_<uchar>(3,3)<<10, 9, 4, 11, 1, 7, 3, 2, 5);
+    // cout<<mst<<endl;
+
+    Graph graph = Graph();
+    graph.createGraph(mst);
+    // graph.printGraph();
+
+    vector<Edge> edgesG = graph.getEdges();
+
+    sort(edgesG.begin(),edgesG.end(),Edge::compareEdges);
+
+    vector<Node> nodesG = graph.getNodes();
+
+    Segmentation S0 = Segmentation();
+
+    int height = mst.size().height;
+    int width = mst.size().width;
+
+    //creation of segmentation 0 with theirs components
+    cout<<"Creating components in Segmentation 0"<<endl;
+    
+    Component c1 = Component();
+    c1.setIndex(0);
+    c1.addNode(0);
+    graph.setNodeIndexComponent(0,0);
+    c1.addNode(1);
+    graph.setNodeIndexComponent(1,0);
+    c1.addNode(2);
+    graph.setNodeIndexComponent(2,0);
+    c1.addNode(3);
+    graph.setNodeIndexComponent(3,0);
+    
+    Component c2 = Component();
+    c2.setIndex(1);
+    c2.addNode(4);
+    graph.setNodeIndexComponent(4,1);
+    c2.addNode(5);
+    graph.setNodeIndexComponent(5,1);
+    c2.addNode(6);
+    graph.setNodeIndexComponent(6,1);
+    c2.addNode(7);
+    graph.setNodeIndexComponent(7,1);
+    c2.addNode(8);
+    graph.setNodeIndexComponent(8,1);
+    
+    S0.addComponent(c1);
+    S0.addComponent(c2);
+    // int a = Segmentation::getMaxEdgeMST(c,graph);
+    // cout<<a<<endl;
+    int a = Segmentation::getDiffComponents(c1,c2,graph);
+    cout<<a<<endl;
 }
 
 int main(int argc, char const *argv[])
@@ -160,6 +235,7 @@ int main(int argc, char const *argv[])
 	int type = (int)argv[2];
 
     segmentarManos(argv[1],type);
+    // tryMST();
 
 	// Mat input = Mat::zeros(3,3,CV_8UC1);
 	// int k = 0;

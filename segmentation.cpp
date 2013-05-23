@@ -9,13 +9,15 @@
 using namespace std;
 using namespace cv;
 
-Component::Component(){}
+Component::Component(){
+	setMaxEdgeMST(-1);
+}
 
 vector<int> Component::getNodes() {
     return nodes;
 }
 
-void Component::addNodes(int node) {
+void Component::addNode(int node) {
     nodes.push_back(node);
 }
 
@@ -25,6 +27,18 @@ int Component::getIndex() {
 
 void Component::setIndex(int ind) {
     index = ind;
+}
+
+void Component::setMaxEdgeMST(int val){
+	maxEdgeMST = val;
+}
+
+int Component::getMaxEdgeMST(){
+	return maxEdgeMST;
+}
+
+void Component::setNodes(vector<int> nodesC){
+	nodes = nodesC;
 }
 
 /*------------------------------------------------------------------------------*/
@@ -47,38 +61,72 @@ bool Segmentation::areDisjoint(Component& c1, Component& c2, float k, Graph& gra
 }
 
 Component Segmentation::joinComponents(Component c1, Component c2){
-	vector<int> nodes = c2.getNodes();
+	vector<int> nodes2 = c2.getNodes();
 
-	for(int i = 0; i < nodes.size(); i++) {
-		c1.addNodes(nodes[i]);
-	}
-
+	// for(int i = 0; i < nodes.size(); i++) {
+	// 	c1.addNodes(nodes[i]);
+	// }
+	vector<int> nodes1 = c1.getNodes();
+	nodes1.reserve(nodes1.size() + distance(nodes2.begin(),nodes2.end()));
+	nodes1.insert(nodes1.end(),nodes2.begin(),nodes2.end());
+	c1.setNodes(nodes1);
+    c1.setMaxEdgeMST(-1);
     return c1;
 }
 
 float Segmentation::getMInt(Component& c1, Component& c2, float k, Graph& graph){
 	float t1 = (float)k/c1.getNodes().size();
 	float t2 = (float)k/c2.getNodes().size();
-	int maxEdgeMST1 = getMaxEdgeMST(c1, graph);
-	int maxEdgeMST2 = getMaxEdgeMST(c2, graph);
+	int maxEdgeMST1 = 0;
+	// cout<<"mst1 c1 "<<c1.getMaxEdgeMST()<<endl;
+	// cout<<"mst2 c2 "<<c2.getMaxEdgeMST()<<endl;
+	if(c1.getMaxEdgeMST() == -1)
+		maxEdgeMST1 = getMaxEdgeMST(c1, graph);
+	else{
+		// cout<<"no recalculando c1"<<endl;
+		maxEdgeMST1 = c1.getMaxEdgeMST();
+	}
+
+	int maxEdgeMST2 = 0;
+	if(c2.getMaxEdgeMST() == -1)
+		maxEdgeMST2 = getMaxEdgeMST(c2, graph);
+	else{
+		// cout<<"no recalculando c2"<<endl;
+		maxEdgeMST2 = c2.getMaxEdgeMST();
+	}
 	// cout<<"maxEdgeMST1 "<<maxEdgeMST1<<", maxEdgeMST2 "<<maxEdgeMST2<<", t1 "<<t1<<", t2 "<<t2<<endl;
 	return min(maxEdgeMST1 + t1, maxEdgeMST2 + t2);
 }
 
-int Segmentation::getDiffComponents(Component& c1, Component& c2, Graph& graph){
+int Segmentation::getDiffComponents(Component& c1, Component& c2, Graph graph){
 	int min = 5000;
+    int index2;
+    int indexEdge = -1;
+    vector<int> c1Nodes;
 
-    int index2 = c2.getIndex();
-    vector<int> c1Nodes = c1.getNodes();
+	if(c1.getNodes().size() > c2.getNodes().size()){
+		index2 = c1.getIndex();
+		c1Nodes = c2.getNodes();
+	}else{
+		index2 = c2.getIndex();
+		c1Nodes = c1.getNodes();
+	}
+
+
     vector<Node> graphNodes = graph.getNodes();
     vector<Edge> graphEdges = graph.getEdges();
     // cout<<"Components "<<c1.getIndex()<<", "<<c2.getIndex()<<endl;
     for(int i = 0; i < c1Nodes.size(); i++){
         Node c1Node = graphNodes[c1Nodes[i]];
-        vector<int> c1NodeEdges = c1Node.getEdges();
+        vector<pair<int,int> > c1NodeEdges = c1Node.getEdges();
 
         for(int j = 0; j < c1NodeEdges.size(); j++){
-            Edge c1edg = graphEdges[c1NodeEdges[j]];
+            Edge& c1edg = graphEdges[c1NodeEdges[j].first];
+            if(c1edg.isSelected())
+            	continue;
+            else{
+            	c1edg.setSelected(true);
+            }
             // cout<<"\tedge_index> "<<c1edg.getIndex()<<" weight "<<c1edg.getWeight()<<endl;
             vector<int> nodes  = c1edg.getNodes();
             int indexC;
@@ -91,17 +139,21 @@ int Segmentation::getDiffComponents(Component& c1, Component& c2, Graph& graph){
 			// cout<<"\tindexC "<<indexC<<endl;
 			if(indexC == index2){
 				// cout<<"\t\tjoin components"<<endl;
-                if(c1edg.getWeight() < min)
+                if(c1edg.getWeight() < min) {
+                	indexEdge = c1edg.getIndex();
                     min = c1edg.getWeight();
+                }
+                break;
             }
 		}
 	}
+	// cout<<"index Edge "<<graphEdges[indexEdge].getNodes()[0]<<","<<graphEdges[indexEdge].getNodes()[1]<<endl;
 	// cout<<"min diff"<<min<<endl;
 	return min;
 }
 
 
-int Segmentation::getMaxEdgeMST(Component& c, Graph& graph1){
+int Segmentation::getMaxEdgeMST(Component& c, Graph graph1){
 
 	Graph graph = graph1;
 
@@ -117,28 +169,34 @@ int Segmentation::getMaxEdgeMST(Component& c, Graph& graph1){
 
 	for(int i = 0; i < cNodes.size(); i++){
 		Node node = graphNodes[cNodes[i]];
-
-		vector<int> nEdges = node.getEdges();
+		vector<pair<int,int> > nEdges = node.getEdges();
 
 		int minEdgeIndex = 0;
 		int minWeightEdge = 5000;
 
 		for(int j = 0; j < nEdges.size(); j++){
-			Edge edge = graphEdges[nEdges[j]];
+			Edge& edge = graphEdges[nEdges[j].first];
 
-			if(!edge.isSelected())
-				if(edge.getWeight() < minWeightEdge){
-					minWeightEdge = edge.getWeight();
-					minEdgeIndex = edge.getIndex();
-				}
+            vector<int> nodes  = edge.getNodes();
+            int indexC;
+            if(node.getIndex() != nodes[0]){
+				indexC = graphNodes[nodes[0]].getIndexComponent();
+			}
+			else{
+				indexC = graphNodes[nodes[1]].getIndexComponent();
+			}
 
+			if(!edge.isSelected() && indexC == c.getIndex()) {
+				minWeightEdge = edge.getWeight();
+				minEdgeIndex = edge.getIndex();
+				edge.setSelected(true);
+				break;
+			}
 		}
-
-		graphEdges[minEdgeIndex].setSelected(true);
 
 		if(minWeightEdge > maxComponent)
 			maxComponent = minWeightEdge;
 	}
-
+	c.setMaxEdgeMST(maxComponent);
 	return maxComponent;
 }

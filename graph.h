@@ -1,11 +1,12 @@
 #include <opencv2/core/core.hpp>
 
 using namespace cv;
+using namespace std;
 
 class Node
 {
 vector<int> neighbors;
-vector<int> edges;
+vector<pair<int,int> > edges;
 int index;
 int indexComponent;
 bool selected;
@@ -18,8 +19,9 @@ public:
 	void setIndex(int ind);
 	int getIndexComponent();
 	void setIndexComponent(int ind);
-	void addEdge(int edge);
-	vector<int> getEdges();
+	void addEdge(int index, int weight);
+	void setEdges(vector<pair<int,int> > edgesN);
+	vector<pair<int,int> > getEdges();
 	void setSelected(bool sel);
 	bool isSelected();
 	void setValue(int val);
@@ -63,5 +65,6 @@ public:
 	int getIndex();
 	void setIndex(int ind);
 	void setNodeIndexComponent(int node, int k);
+	static bool compareEdges1( const pair<int, int>& i, const pair<int, int>& j );
 	
 };

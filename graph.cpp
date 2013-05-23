@@ -38,12 +38,19 @@ void Node::setIndexComponent(int ind){
     indexComponent = ind;
 }
 
-vector<int> Node::getEdges() {
+vector<pair<int,int> > Node::getEdges() {
 	return edges;
 }
 
-void Node::addEdge(int edge) {
-	edges.push_back(edge);
+void Node::addEdge(int index,int weight) {
+	pair<int,int> p;
+	p.first = index;
+	p.second = weight;
+	edges.push_back(p);
+}
+
+void Node::setEdges(vector<pair<int,int> > edgesN){
+	edges = edgesN;
 }
 
 void Node::setSelected(bool sel){
@@ -62,6 +69,7 @@ int Node::getValue(){
 	return value;
 }
 
+/*-----------------------------------------------------------------*/
 
 Edge::Edge(){
 	setSelected(false);
@@ -122,6 +130,8 @@ void Graph::createGraph(Mat input) {
 		}
 	}
 
+	k = 0;
+
 	for (int i = 0; i < height; ++i)
 	{
 		for (int j = 0; j < width; ++j)
@@ -131,23 +141,22 @@ void Graph::createGraph(Mat input) {
 			Node& node_a = nodes[index_a];
 			int vertex_b;
 			int index_b;
+			int weight;
 			//right
 			if(j < width-1) {
 				Edge edge1 = Edge();
 				vertex_b = (int)input.at<uchar>(i,j+1);
-				edge1.setWeight(abs(vertex_a - vertex_b));
+				weight = abs(vertex_a - vertex_b);
+				edge1.setWeight(weight);
 				index_b = (j + 1) + i*width;
 				edge1.addNode(index_a);
 				edge1.addNode(index_b);
 
+				edge1.setIndex(k++);
 				edges.push_back(edge1);
-				edge1.setIndex(edges.size()-1);
-
 				Node& node_b = nodes[index_b];
-				node_a.addEdge(edges.size()-1);
-				node_b.addEdge(edges.size()-1);
-				node_a.addNeighbor(index_b);
-				node_b.addNeighbor(index_a);
+				node_a.addEdge(edge1.getIndex(),weight);
+				node_b.addEdge(edge1.getIndex(),weight);
 
 			}
 
@@ -155,18 +164,17 @@ void Graph::createGraph(Mat input) {
 			if(j < width-1 && i < height-1) {
 				Edge edge2 = Edge();
 				vertex_b = (int)input.at<uchar>(i+1,j+1);
-				edge2.setWeight(abs(vertex_a - vertex_b));
+				weight = abs(vertex_a - vertex_b);
+				edge2.setWeight(weight);
 				index_b = (j + 1) + (i + 1)*width;
 				edge2.addNode(index_a);
 				edge2.addNode(index_b);
 
+				edge2.setIndex(k++);
 				edges.push_back(edge2);
-				edge2.setIndex(edges.size()-1);
 				Node& node_b = nodes[index_b];
-				node_a.addEdge(edges.size()-1);
-				node_b.addEdge(edges.size()-1);
-				node_a.addNeighbor(index_b);
-				node_b.addNeighbor(index_a);
+				node_a.addEdge(edge2.getIndex(),weight);
+				node_b.addEdge(edge2.getIndex(),weight);
 
 			}
 
@@ -174,18 +182,17 @@ void Graph::createGraph(Mat input) {
 			if(i < height-1) {
 				Edge edge3 = Edge();
 				vertex_b = (int)input.at<uchar>(i+1,j);
-				edge3.setWeight(abs(vertex_a - vertex_b));
+				weight = abs(vertex_a - vertex_b);
+				edge3.setWeight(weight);
 				index_b = j + (i + 1)*width;
 				edge3.addNode(index_a);
 				edge3.addNode(index_b);
 
+				edge3.setIndex(k++);
 				edges.push_back(edge3);
-				edge3.setIndex(edges.size()-1);
 				Node& node_b = nodes[index_b];
-				node_a.addEdge(edges.size()-1);
-				node_b.addEdge(edges.size()-1);
-				node_a.addNeighbor(index_b);
-				node_b.addNeighbor(index_a);
+				node_a.addEdge(edge3.getIndex(),weight);
+				node_b.addEdge(edge3.getIndex(),weight);
 
 			}
 
@@ -193,28 +200,35 @@ void Graph::createGraph(Mat input) {
 			if(j > 0 && i < height-1) {
 				Edge edge4 = Edge();
 				vertex_b = (int)input.at<uchar>(i+1,j-1);
-				edge4.setWeight(abs(vertex_a - vertex_b));
+				weight = abs(vertex_a - vertex_b);
+				edge4.setWeight(weight);
 				index_b = (j - 1) + (i + 1)*width;
 				edge4.addNode(index_a);
 				edge4.addNode(index_b);
 
+				edge4.setIndex(k++);
 				edges.push_back(edge4);
-				edge4.setIndex(edges.size()-1);
 				Node& node_b = nodes[index_b];
-				node_a.addEdge(edges.size()-1);
-				node_b.addEdge(edges.size()-1);
-				node_a.addNeighbor(index_b);
-				node_b.addNeighbor(index_a);
+				node_a.addEdge(edge4.getIndex(),weight);
+				node_b.addEdge(edge4.getIndex(),weight);
 
 			}
-
 		}
 	}
+
+	for (int i = 0; i < nodes.size(); ++i)
+	{
+		Node& node = nodes[i];
+		vector<pair<int,int> > nEdges = node.getEdges();
+		sort(nEdges.begin(),nEdges.end(),compareEdges1);
+		node.setEdges(nEdges);
+	}
+
 }
 
 void Graph::printGraph() {
 	Node node;
-	vector<int> edgesNode;
+	vector<pair<int,int> > edgesNode;
 	for (int i = 0; i < nodes.size(); ++i)
 	{
 		node = nodes[i];
@@ -223,7 +237,7 @@ void Graph::printGraph() {
 		edgesNode = node.getEdges();
 		for (int j = 0; j < edgesNode.size(); ++j)
 		{
-			Edge edge = edges[edgesNode[j]];
+			Edge edge = edges[edgesNode[j].first];
 			vector<int> nodesEdge = edge.getNodes();
 			if(nodesEdge[0] != i) {
 				cout<<"\t"<<"Neighbor "<<nodesEdge[0]<<" weight "<<edge.getWeight()<<endl;
@@ -253,4 +267,8 @@ void Graph::setIndex(int ind){
 void Graph::setNodeIndexComponent(int n, int k){
 	Node& node = nodes[n];
 	node.setIndexComponent(k);
+}
+
+bool Graph::compareEdges1( const pair<int, int>& i, const pair<int, int>& j ) {
+	return i.second < j.second;
 }
