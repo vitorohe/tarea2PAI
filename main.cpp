@@ -137,20 +137,12 @@ void segmentarManos(string filename, int type){
                 {
                 	if(i == indexc1) {
                 		new_c1.setIndex(k++);
-                        // updateNodeIndexComponent(new_c1,k-1,graph);
-                        for (int j = 0; j < new_c1.getNodes().size(); ++j)
-                        {
-                            graph.setNodeIndexComponent(new_c1.getNodes()[j],new_c1.getIndex());
-                        }
+                        updateNodeIndexComponent(new_c1,k-1,graph);
                 		Saux.addComponent(new_c1);
                 	} else if(i != indexc2){
                 		Component& c = components[i];
                 		c.setIndex(k++);
-                        // updateNodeIndexComponent(c,k-1,graph);
-                        for (int j = 0; j < c.getNodes().size(); ++j)
-                        {
-                            graph.setNodeIndexComponent(c.getNodes()[j],c.getIndex());
-                        }
+                        updateNodeIndexComponent(c,k-1,graph);
                 		Saux.addComponent(c);
                 	}
 
