@@ -9,25 +9,41 @@
 using namespace std;
 using namespace cv;
 
+Pair::Pair(){}
 
-Node::Node(){
+Node::Node(int i) {
+	rank = 0;
+	parent = NULL;
+	indexN = i;
 	setSelected(false);
+	children = new vector<Node *>;
+	// edges.reserve(8);
 }
-
-vector<int> Node::getNeighbors(){
-	return neighbors;
+Node::Node(Node *p, int i) {
+	rank = 0;
+	parent = p;
+	indexN = i;
+	setSelected(false);
+	children = new vector<Node *>;
+	// edges.reserve(8);
 }
-
-void Node::addNeighbor(int neighbor){
-	neighbors.push_back(neighbor);
+Node *Node::findN(Node *node) {
+	// Node *parent;
+	// cout<<"find "<<node->indexN<<endl;
+	if (node->parent != node) {  
+		// cout<<"find if"<<endl;
+		// cout<<"find p"<<node->parent->indexN<<endl;
+		node->parent = findN(node->parent);  
+	}
+	return node->parent;
 }
 
 int Node::getIndex(){
-	return index;
+	return indexN;
 }
 
 void Node::setIndex(int ind){
-	index = ind;
+	indexN = ind;
 }
 
 int Node::getIndexComponent(){
@@ -42,11 +58,17 @@ vector<pair<int,int> > Node::getEdges() {
 	return edges;
 }
 
-void Node::addEdge(int index,int weight) {
+void Node::addEdge(int ind,int weight) {
 	pair<int,int> p;
-	p.first = index;
+	// Pair p = Pair();
+	p.first = ind;
+	// cout<<"\t"<<p.first<<", "<<ind<<endl;
 	p.second = weight;
+	// cout<<"\t"<<p.second<<endl;
+	// if(index < 0)
+	// 	cout<<"negative index"<<endl;
 	edges.push_back(p);
+	// cout<<"\tgugh "<<edges.back().first<<endl;
 }
 
 void Node::setEdges(vector<pair<int,int> > edgesN){
@@ -76,11 +98,11 @@ Edge::Edge(){
 }
 
 int Edge::getIndex(){
-	return index;
+	return indexE;
 }
 
 void Edge::setIndex(int ind){
-	index = ind;
+	indexE = ind;
 }
 
 int Edge::getWeight(){
@@ -99,8 +121,8 @@ vector<int> Edge::getNodes(){
 	return nodes;
 }
 
-bool Edge::compareEdges(Edge edge1, Edge edge2){
-	return edge1.getWeight() < edge2.getWeight();
+bool Edge::compareEdges(Edge *edge1, Edge *edge2){
+	return edge1->getWeight() < edge2->getWeight();
 }
 
 void Edge::setSelected(bool sel){
@@ -111,7 +133,17 @@ bool Edge::isSelected(){
 	return selected;
 }
 
-Graph::Graph(){}
+/*---------------------------------------------------------------------------*/
+
+
+Graph::Graph(int h, int w){
+	nodes = new vector<Node *> ;//(h*w);
+	edges = new vector<Edge *> ;//(4*h*w - 3*(w+h) + 2);
+	nodes->reserve(h*w);
+	edges->reserve(4*h*w - 3*(w+h) + 2);
+	// cout<<edges->size()<<endl;
+	cout<<"Graph initialized"<<endl;
+}
 
 void Graph::createGraph(Mat input) {
 	int width = input.size().width;
@@ -123,13 +155,12 @@ void Graph::createGraph(Mat input) {
 	{
 		for (int j = 0; j < width; ++j)
 		{
-			Node node = Node();
-			node.setIndex(k++);
-			node.setValue((int)input.at<uchar>(i,j));
-			nodes.push_back(node);
+			Node *node = new Node(k++);
+			node->setValue((int)input.at<uchar>(i,j));
+			nodes->push_back(node);
 		}
 	}
-
+	cout<<"Nodes initialized"<<endl;
 	k = 0;
 
 	for (int i = 0; i < height; ++i)
@@ -138,137 +169,163 @@ void Graph::createGraph(Mat input) {
 		{
 			int vertex_a = (int)input.at<uchar>(i,j);
 			int index_a = j+width*i;
-			Node& node_a = nodes[index_a];
+			Node *node_a = (*nodes)[index_a];
 			int vertex_b;
 			int index_b;
 			int weight;
+
+			// cout<<"\tEdge right"<<endl;
 			//right
 			if(j < width-1) {
-				Edge edge1 = Edge();
+				Edge *edge1 = new Edge();
 				vertex_b = (int)input.at<uchar>(i,j+1);
 				weight = abs(vertex_a - vertex_b);
-				edge1.setWeight(weight);
+				edge1->setWeight(weight);
 				index_b = (j + 1) + i*width;
-				edge1.addNode(index_a);
-				edge1.addNode(index_b);
 
-				edge1.setIndex(k++);
-				edges.push_back(edge1);
-				Node& node_b = nodes[index_b];
-				node_a.addEdge(edge1.getIndex(),weight);
-				node_b.addEdge(edge1.getIndex(),weight);
-
+				edge1->addNode(index_a);
+				edge1->addNode(index_b);
+				edge1->setIndex(k++);
+				// cout<<"edge k "<<k-1<<" index "<<edge.getIndex()<<endl;
+				Node *node_b = (*nodes)[index_b];
+				node_a->addEdge(k-1,weight);
+				node_b->addEdge(k-1,weight);
+				edges->push_back(edge1);
 			}
 
 			//right and down
 			if(j < width-1 && i < height-1) {
-				Edge edge2 = Edge();
+				Edge *edge2 = new Edge();
 				vertex_b = (int)input.at<uchar>(i+1,j+1);
 				weight = abs(vertex_a - vertex_b);
-				edge2.setWeight(weight);
+				edge2->setWeight(weight);
 				index_b = (j + 1) + (i + 1)*width;
-				edge2.addNode(index_a);
-				edge2.addNode(index_b);
-
-				edge2.setIndex(k++);
-				edges.push_back(edge2);
-				Node& node_b = nodes[index_b];
-				node_a.addEdge(edge2.getIndex(),weight);
-				node_b.addEdge(edge2.getIndex(),weight);
-
+				
+				edge2->addNode(index_a);
+				edge2->addNode(index_b);
+				edge2->setIndex(k++);
+				// cout<<"edge k "<<k-1<<" index "<<edge.getIndex()<<endl;
+				Node *node_b = (*nodes)[index_b];
+				node_a->addEdge(k-1,weight);
+				node_b->addEdge(k-1,weight);
+				edges->push_back(edge2);
 			}
 
 			//down
 			if(i < height-1) {
-				Edge edge3 = Edge();
+				Edge *edge3 = new Edge();
 				vertex_b = (int)input.at<uchar>(i+1,j);
 				weight = abs(vertex_a - vertex_b);
-				edge3.setWeight(weight);
+				edge3->setWeight(weight);
 				index_b = j + (i + 1)*width;
-				edge3.addNode(index_a);
-				edge3.addNode(index_b);
-
-				edge3.setIndex(k++);
-				edges.push_back(edge3);
-				Node& node_b = nodes[index_b];
-				node_a.addEdge(edge3.getIndex(),weight);
-				node_b.addEdge(edge3.getIndex(),weight);
-
+				
+				edge3->addNode(index_a);
+				edge3->addNode(index_b);
+				edge3->setIndex(k++);
+				// cout<<"edge k "<<k-1<<" index "<<edge.getIndex()<<endl;
+				Node *node_b = (*nodes)[index_b];
+				node_a->addEdge(k-1,weight);
+				node_b->addEdge(k-1,weight);
+				edges->push_back(edge3);
 			}
 
 			//left and down
 			if(j > 0 && i < height-1) {
-				Edge edge4 = Edge();
+				Edge *edge4 = new Edge();
 				vertex_b = (int)input.at<uchar>(i+1,j-1);
 				weight = abs(vertex_a - vertex_b);
-				edge4.setWeight(weight);
+				edge4->setWeight(weight);
 				index_b = (j - 1) + (i + 1)*width;
-				edge4.addNode(index_a);
-				edge4.addNode(index_b);
-
-				edge4.setIndex(k++);
-				edges.push_back(edge4);
-				Node& node_b = nodes[index_b];
-				node_a.addEdge(edge4.getIndex(),weight);
-				node_b.addEdge(edge4.getIndex(),weight);
-
+				
+				edge4->addNode(index_a);
+				edge4->addNode(index_b);
+				edge4->setIndex(k++);
+				// cout<<"edge k "<<k-1<<" index "<<edge.getIndex()<<endl;
+				Node *node_b = (*nodes)[index_b];
+				node_a->addEdge(k-1,weight);
+				node_b->addEdge(k-1,weight);
+				edges->push_back(edge4);
 			}
+		
+			// for (int h = 0; h<edges->size(); h++)
+		 //    {
+		 //        int j = (*edges).at(h)->getIndex();
+		 //        cout<<"\t\tedge "<<j<<endl;
+		 //        // cout<<"edge "<<(*edgesG).at(i)->getIndex()<<" w "<<(*edgesG).at(i)->getWeight()<<endl;
+		 //    }
+		 //    cout<<"-----------------------------------------------------------------------------"<<endl;
+			// break;
 		}
+		// break;
 	}
-
-	for (int i = 0; i < nodes.size(); ++i)
+	// cout<<edges->size()<<endl;
+	// for (int i = 0; i<edges->size(); i++)
+ //    {
+ //        int j = (*edges).at(i)->getIndex();
+ //        cout<<"edge "<<j<<endl;
+ //        // cout<<"edge "<<(*edgesG).at(i)->getIndex()<<" w "<<(*edgesG).at(i)->getWeight()<<endl;
+ //    }
+	// cout<<edges->size()<<endl;
+	for (int i = 0; i < nodes->size(); ++i)
 	{
-		Node& node = nodes[i];
-		vector<pair<int,int> > nEdges = node.getEdges();
+		Node *node = (*nodes)[i];
+		vector<pair<int,int> > nEdges = node->getEdges();
 		sort(nEdges.begin(),nEdges.end(),compareEdges1);
-		node.setEdges(nEdges);
+		node->setEdges(nEdges);
 	}
-
+	cout<<"Graph created with nodes"<<endl;
 }
 
 void Graph::printGraph() {
-	Node node;
+	Node *node;
 	vector<pair<int,int> > edgesNode;
-	for (int i = 0; i < nodes.size(); ++i)
+	for (int i = 0; i < nodes->size(); ++i)
 	{
-		node = nodes[i];
-		cout<<"Node "<<node.getIndex()<<endl;
+		node = (*nodes)[i];
+		cout<<"Node "<<node->getIndex()<<endl;
 
-		edgesNode = node.getEdges();
+		edgesNode = node->getEdges();
 		for (int j = 0; j < edgesNode.size(); ++j)
 		{
-			Edge edge = edges[edgesNode[j].first];
-			vector<int> nodesEdge = edge.getNodes();
+			Edge *edge = (*edges)[edgesNode[j].first];
+			vector<int> nodesEdge = edge->getNodes();
 			if(nodesEdge[0] != i) {
-				cout<<"\t"<<"Neighbor "<<nodesEdge[0]<<" weight "<<edge.getWeight()<<endl;
+				cout<<"\t"<<"Neighbor "<<nodesEdge[0]<<" weight "<<edge->getWeight()<<endl;
 			} else {
-				cout<<"\t"<<"Neighbor "<<nodesEdge[1]<<" weight "<<edge.getWeight()<<endl;
+				cout<<"\t"<<"Neighbor "<<nodesEdge[1]<<" weight "<<edge->getWeight()<<endl;
 			}
 		}
 	}
 }
 
-vector<Node> Graph::getNodes(){
+vector<Node *>* Graph::getNodes(){
 	return nodes;
 }
 
-vector<Edge> Graph::getEdges(){
+vector<Edge *>* Graph::getEdges(){
 	return edges;
 }
 
-int Graph::getIndex(){
-	return index;
-}
-
-void Graph::setIndex(int ind){
-	index = ind;
-}
-
 void Graph::setNodeIndexComponent(int n, int k){
-	Node& node = nodes[n];
-	node.setIndexComponent(k);
+	Node *node = (*nodes)[n];
+	node->setIndexComponent(k);
 }
 
-bool Graph::compareEdges1( const pair<int, int>& i, const pair<int, int>& j ) {
+bool Graph::compareEdges1( pair<int,int> i, pair<int,int> j ) {
 	return i.second < j.second;
+}
+
+template <class C> 
+void Graph::freeClear( C *cntr ) {
+    for ( typename C::iterator it = cntr->begin(); it != cntr->end(); ++it ) {
+    	delete *it;
+    }
+    cntr->clear();
+}
+
+void Graph::freeGraph(){
+	freeClear(nodes);
+	delete nodes;
+	freeClear(edges);
+	delete edges;
 }
