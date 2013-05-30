@@ -45,3 +45,11 @@ public:
 	static int getMaxEdgeMST(Node *root, vector<Node *>* graphNodes, vector<Edge *>* graphEdges, int index);
 	void freeSegmentation();
 };
+
+
+class Pair{
+public:
+	Graph *first;
+	Segmentation *second;
+	Pair();
+};

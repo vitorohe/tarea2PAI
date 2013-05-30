@@ -89,7 +89,7 @@ bool Segmentation::areDisjoint(Component *c1, Component *c2, float k, Graph grap
 	// cout<<"diff between sñwkirghvor"<<endl;
 	float v2 = getMInt(c1,c2,k, graph);
 	// cout<<"diff "<<v1<<", mint "<<v2<<endl;
-	return v1 > v2;
+	return (v1 - v2) > 20;
 }
 
 float Segmentation::getMInt(Component *c1, Component *c2, float k, Graph graph){
@@ -124,7 +124,7 @@ float Segmentation::getMInt(Component *c1, Component *c2, float k, Graph graph){
 	}
 	// cout<<"mint 4"<<endl;
 	// cout<<"maxEdgeMST1 "<<maxEdgeMST1<<", maxEdgeMST2 "<<maxEdgeMST2<<", t1 "<<t1<<", t2 "<<t2<<endl;
-	return min(maxEdgeMST1 + (int)t1, maxEdgeMST2 + (int)t2);
+	return min(maxEdgeMST1 + t1, maxEdgeMST2 + t2);
 }
 
 int Segmentation::getDiffComponents(Component *c1, Component *c2, Graph graph){
@@ -257,3 +257,5 @@ void Segmentation::freeSegmentation() {
 	}
 	components.clear();
 }
+
+Pair::Pair(){}

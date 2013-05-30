@@ -9,8 +9,6 @@
 using namespace std;
 using namespace cv;
 
-Pair::Pair(){}
-
 Node::Node(int i) {
 	rank = 0;
 	parent = NULL;
@@ -145,18 +143,29 @@ Graph::Graph(int h, int w){
 	cout<<"Graph initialized"<<endl;
 }
 
-void Graph::createGraph(Mat input) {
+void Graph::createGraph(Mat input, int type) {
 	int width = input.size().width;
 	int height = input.size().height;
 
 	int k = 0;
-
+	int val = -1;
 	for (int i = 0; i < height; ++i)
 	{
 		for (int j = 0; j < width; ++j)
 		{
 			Node *node = new Node(k++);
-			node->setValue((int)input.at<uchar>(i,j));
+			if(type == 1){
+				Vec3b vecColor = input.at<Vec3b>(i,j);
+				int val0 = (int)vecColor[0];
+				int val1 = (int)vecColor[1];
+				int val2 = (int)vecColor[2];
+				Mat vals = (Mat_<int>(1,3)<<val0,val1,val2);
+				val = (int)norm(vals,NORM_L2);
+			}
+			else if(type == 2){
+				val = (int)input.at<uchar>(i,j);
+			}
+			node->setValue(val);
 			nodes->push_back(node);
 		}
 	}
@@ -168,6 +177,7 @@ void Graph::createGraph(Mat input) {
 		for (int j = 0; j < width; ++j)
 		{
 			int vertex_a = (int)input.at<uchar>(i,j);
+			Vec3b vA = input.at<Vec3b>(i,j);
 			int index_a = j+width*i;
 			Node *node_a = (*nodes)[index_a];
 			int vertex_b;
@@ -177,17 +187,29 @@ void Graph::createGraph(Mat input) {
 			// cout<<"\tEdge right"<<endl;
 			//right
 			if(j < width-1) {
-				Edge *edge1 = new Edge();
-				vertex_b = (int)input.at<uchar>(i,j+1);
-				weight = abs(vertex_a - vertex_b);
-				edge1->setWeight(weight);
 				index_b = (j + 1) + i*width;
+				Node *node_b = (*nodes)[index_b];
+				vertex_b = node_b->getValue();
+				if(type == 1){
+					weight = abs(vertex_a - vertex_b);
+				}
+				else if(type == 2){
+					Vec3b vB = input.at<Vec3b>(i,j+1);
+					int val0 = (int)vA[0] - (int)vB[0];
+					int val1 = (int)vA[1] - (int)vB[1];
+					int val2 = (int)vA[2] - (int)vB[2];
+					Mat vals = (Mat_<int>(1,3)<<val0,val1,val2);
+					int val = (int)norm(vals,NORM_L2);
+					weight = val;
+				}
+
+				Edge *edge1 = new Edge();
+				edge1->setWeight(weight);
 
 				edge1->addNode(index_a);
 				edge1->addNode(index_b);
 				edge1->setIndex(k++);
 				// cout<<"edge k "<<k-1<<" index "<<edge.getIndex()<<endl;
-				Node *node_b = (*nodes)[index_b];
 				node_a->addEdge(k-1,weight);
 				node_b->addEdge(k-1,weight);
 				edges->push_back(edge1);
@@ -195,17 +217,29 @@ void Graph::createGraph(Mat input) {
 
 			//right and down
 			if(j < width-1 && i < height-1) {
-				Edge *edge2 = new Edge();
-				vertex_b = (int)input.at<uchar>(i+1,j+1);
-				weight = abs(vertex_a - vertex_b);
-				edge2->setWeight(weight);
 				index_b = (j + 1) + (i + 1)*width;
+				Node *node_b = (*nodes)[index_b];
+				vertex_b = node_b->getValue();
+				if(type == 1){
+					weight = abs(vertex_a - vertex_b);
+				}
+				else if(type == 2){
+					Vec3b vB = input.at<Vec3b>(i+1,j+1);
+					int val0 = (int)vA[0] - (int)vB[0];
+					int val1 = (int)vA[1] - (int)vB[1];
+					int val2 = (int)vA[2] - (int)vB[2];
+					Mat vals = (Mat_<int>(1,3)<<val0,val1,val2);
+					int val = (int)norm(vals,NORM_L2);
+					weight = val;
+				}
+				
+				Edge *edge2 = new Edge();
+				edge2->setWeight(weight);
 				
 				edge2->addNode(index_a);
 				edge2->addNode(index_b);
 				edge2->setIndex(k++);
 				// cout<<"edge k "<<k-1<<" index "<<edge.getIndex()<<endl;
-				Node *node_b = (*nodes)[index_b];
 				node_a->addEdge(k-1,weight);
 				node_b->addEdge(k-1,weight);
 				edges->push_back(edge2);
@@ -213,17 +247,30 @@ void Graph::createGraph(Mat input) {
 
 			//down
 			if(i < height-1) {
-				Edge *edge3 = new Edge();
-				vertex_b = (int)input.at<uchar>(i+1,j);
-				weight = abs(vertex_a - vertex_b);
-				edge3->setWeight(weight);
+				
 				index_b = j + (i + 1)*width;
+				Node *node_b = (*nodes)[index_b];
+				vertex_b = node_b->getValue();
+				if(type == 1){
+					weight = abs(vertex_a - vertex_b);
+				}
+				else if(type == 2){
+					Vec3b vB = input.at<Vec3b>(i+1,j);
+					int val0 = (int)vA[0] - (int)vB[0];
+					int val1 = (int)vA[1] - (int)vB[1];
+					int val2 = (int)vA[2] - (int)vB[2];
+					Mat vals = (Mat_<int>(1,3)<<val0,val1,val2);
+					int val = (int)norm(vals,NORM_L2);
+					weight = val;
+				}
+				
+				Edge *edge3 = new Edge();
+				edge3->setWeight(weight);
 				
 				edge3->addNode(index_a);
 				edge3->addNode(index_b);
 				edge3->setIndex(k++);
 				// cout<<"edge k "<<k-1<<" index "<<edge.getIndex()<<endl;
-				Node *node_b = (*nodes)[index_b];
 				node_a->addEdge(k-1,weight);
 				node_b->addEdge(k-1,weight);
 				edges->push_back(edge3);
@@ -231,17 +278,29 @@ void Graph::createGraph(Mat input) {
 
 			//left and down
 			if(j > 0 && i < height-1) {
-				Edge *edge4 = new Edge();
-				vertex_b = (int)input.at<uchar>(i+1,j-1);
-				weight = abs(vertex_a - vertex_b);
-				edge4->setWeight(weight);
 				index_b = (j - 1) + (i + 1)*width;
+				Node *node_b = (*nodes)[index_b];
+				vertex_b = node_b->getValue();
+				if(type == 1){
+					weight = abs(vertex_a - vertex_b);
+				}
+				else if(type == 2){
+					Vec3b vB = input.at<Vec3b>(i+1,j-1);
+					int val0 = (int)vA[0] - (int)vB[0];
+					int val1 = (int)vA[1] - (int)vB[1];
+					int val2 = (int)vA[2] - (int)vB[2];
+					Mat vals = (Mat_<int>(1,3)<<val0,val1,val2);
+					int val = (int)norm(vals,NORM_L2);
+					weight = val;
+				}
+				
+				Edge *edge4 = new Edge();
+				edge4->setWeight(weight);
 				
 				edge4->addNode(index_a);
 				edge4->addNode(index_b);
 				edge4->setIndex(k++);
 				// cout<<"edge k "<<k-1<<" index "<<edge.getIndex()<<endl;
-				Node *node_b = (*nodes)[index_b];
 				node_a->addEdge(k-1,weight);
 				node_b->addEdge(k-1,weight);
 				edges->push_back(edge4);

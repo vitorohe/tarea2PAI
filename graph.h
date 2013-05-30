@@ -4,13 +4,6 @@
 using namespace cv;
 using namespace std;
 
-class Pair{
-public:
-	int first;
-	int second;
-	Pair();
-};
-
 class Edge
 {
 int indexE;
@@ -71,7 +64,7 @@ vector<Edge *> *edges;
 
 public:
 	Graph(int height, int width);
-	void createGraph(Mat input);
+	void createGraph(Mat input, int type);
 	void printGraph();
 	vector<Node *>* getNodes();
 	vector<Edge *>* getEdges();
