@@ -37,6 +37,7 @@ vector<Component *> components;
 public:
 	Segmentation();
 	vector<Component *> getComponents();
+	void setComponents(vector<Component *> comps);
 	void addComponent(Component *c);
 	bool areDisjoint(Component *c1, Component *c2, float k, Graph graph);
 	static float getMInt(Component *c1, Component *c2, float k, Graph graph);
@@ -49,7 +50,7 @@ public:
 
 class Pair{
 public:
-	Graph *first;
+	vector<Node *> *first;
 	Segmentation *second;
 	Pair();
 };

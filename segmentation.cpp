@@ -79,6 +79,10 @@ vector<Component *> Segmentation::getComponents(){
 	return components;
 }
 
+void Segmentation::setComponents(vector<Component *> comps) {
+	components = comps;
+}
+
 void Segmentation::addComponent(Component *c){
     components.push_back(c);
 }
@@ -89,7 +93,7 @@ bool Segmentation::areDisjoint(Component *c1, Component *c2, float k, Graph grap
 	// cout<<"diff between sñwkirghvor"<<endl;
 	float v2 = getMInt(c1,c2,k, graph);
 	// cout<<"diff "<<v1<<", mint "<<v2<<endl;
-	return (v1 - v2) > 20;
+	return (v1 - v2) > 3;
 }
 
 float Segmentation::getMInt(Component *c1, Component *c2, float k, Graph graph){

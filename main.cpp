@@ -13,7 +13,87 @@
 using namespace std;
 using namespace cv;
 
+Mat histograma(Mat input){
+	Mat hist = Mat::zeros(256,1,CV_32S);
+	int j = 0, i = 0;
 
+	for(i = 0; i < input.size().height; i++){
+		for(j = 0; j < input.size().width; j++){
+			hist.at<int>(input.at<uchar>(i,j),0)++;
+		}
+	}
+
+	return hist;
+}
+
+Mat ecualizar(Mat input)
+{
+	//asumimos input esta en escala de grises
+	Mat hist=histograma(input);
+	Mat ecu=Mat(input.size(), input.type());
+	float acum[256];
+	int i=0, j=0;
+	hist.convertTo(hist,CV_32F);
+	acum[0]=hist.at<float>(0,0);
+
+	for(i=1;i<256;i++)
+	{
+		acum[i]=hist.at<float>(i,0)+acum[i-1];
+	}
+	
+	uchar val=0;
+
+	for(i=0;i<input.size().height;i++)
+	{
+		for(j=0;j<input.size().width;j++)
+		{
+			val=(uchar)floor((255.0/(input.size().height*input.size().width))*acum[input.at<uchar>(i,j)]);
+			ecu.at<uchar>(i,j)=val;
+		}
+	}
+	return ecu;
+}
+
+float funcion_h(float gradient, float K){
+	return 1 / (1 + pow(gradient / K, 2));
+}
+
+Mat difusion_anisotropica(Mat input,float lambda, float K, int t){
+	Mat mask_n = (Mat_<int>(3,1)<<1,-1,0);
+	Mat mask_s = (Mat_<int>(3,1)<<0,-1,1);
+	Mat mask_e = (Mat_<int>(1,3)<<0,-1,1);
+	Mat mask_w = (Mat_<int>(1,3)<<1,-1,0);
+
+	Mat Gn, Gs, Ge, Gw;
+	float c_n, c_s, c_e,c_w;
+
+	Point p = Point(-1,-1);
+	int i, j, k;
+	input.convertTo(input,CV_32F);
+
+
+	for(i = 0; i < t; i++){
+
+		filter2D(input,Gn,CV_32F,mask_n,p);
+		filter2D(input,Gs,CV_32F,mask_s,p);
+		filter2D(input,Ge,CV_32F,mask_e,p);
+		filter2D(input,Gw,CV_32F,mask_w,p);
+
+		for(j=0; j<Gn.size().height; j++){
+			for(k=0; k<Gn.size().width; k++){
+				c_n = funcion_h(abs(Gn.at<float>(j,k)),K);
+				c_s = funcion_h(abs(Gs.at<float>(j,k)),K);
+				c_e = funcion_h(abs(Ge.at<float>(j,k)),K);
+				c_w = funcion_h(abs(Gw.at<float>(j,k)),K);
+
+				input.at<float>(j,k) = input.at<float>(j,k) + lambda*(c_n*Gn.at<float>(j,k) + c_s*Gs.at<float>(j,k) +c_e*Ge.at<float>(j,k) + c_w*Gw.at<float>(j,k));
+			
+			}
+		}
+	}
+	convertScaleAbs(input,input);
+	return input;
+}
 
 void paintImg(Node *root, Vec3b vecColor, Mat& imgSegmented, int width, int height){
     int n = root->getIndex()/width;
@@ -32,8 +112,25 @@ void paintImg(Node *root, Vec3b vecColor, Mat& imgSegmented, int width, int heig
     // }
 }
 
-void showImageSegmented(vector<Component *> *components, int width, int height, int channel, Mat imagen){
+void paintImg2(Node *root, uchar color, Mat& imgSegmented, int width, int height){
+    int n = root->getIndex()/width;
+    int m = root->getIndex()%width;
+    imgSegmented.at<uchar>(n,m) = color;
+    // cout<<"painting "<<root->getIndex()<<endl;
 
+    // cout<<"children size "<<root->children.size()<<endl;
+    // if(!root->children) {
+        // cout<<"painting children size "<<root->children.size()<<endl;
+    for(int i = 0; i < root->children->size(); i++){
+        Node *child = (*root->children).at(i);
+        // cout<<"painting child "<<child->getIndex()<<endl;
+        paintImg2(child,color,imgSegmented,width,height);
+    }
+    // }
+}
+
+void showImageSegmented(vector<Component *> *components, int width, int height, Mat imagen, string filename, string type){
+	cout<<"Creating image"<<endl;
 	Mat imgSegmented = Mat::zeros(height,width,CV_8UC3);
 
 	// vector<Component *> components = S.getComponents();
@@ -49,28 +146,71 @@ void showImageSegmented(vector<Component *> *components, int width, int height, 
             // int avg = (*components).at(i)->root->getValue();//totalVal/sizeC;
             int n = (*components).at(i)->root->getIndex()/width;
             int m = (*components).at(i)->root->getIndex()%width;
+            // cout<<"index: "<<(*components).at(i)->root->getIndex()<<", n: "<<n<<", m: "<<m<<endl;
             Vec3b vecColor = imagen.at<Vec3b>(n,m);
+            // cout<<vecColor<<endl;
 
             paintImg((*components).at(i)->root,vecColor,imgSegmented,width,height);
         }
     }
     cout<<"components "<<k<<endl;
 
-    string name = "";
+    int pos = filename.find(".");
+    string name = filename.substr(0,pos);
+    string seg = "_seg_";
+    
+    // string name = "ImgSegmented";
+
+    string extension = filename.substr(pos);
+    imshow(name + seg + type,imgSegmented);
+    imwrite(name + seg + type + extension,imgSegmented);
+}
+
+void showImageSegmented2(vector<Component *> *components, int width, int height, Mat imagen, int channel){
+	cout<<"Creating image"<<endl;
+	Mat imgSegmented = Mat::zeros(height,width,CV_8UC1);
+
+	// vector<Component *> components = S.getComponents();
+    // cout<<"components "<<components.size()<<endl;
+    int k = 0;
+    for(int i = 0; i < components->size(); i++){
+        // cout<<"component "<<i<<" size "<<components[i]->getSize()<<endl;
+        if((*components).at(i) != NULL){
+            k++;
+            int totalVal = (*components).at(i)->getTotalVal();
+            int sizeC = (*components).at(i)->getSize();
+
+            // int avg = (*components).at(i)->root->getValue();//totalVal/sizeC;
+            int n = (*components).at(i)->root->getIndex()/width;
+            int m = (*components).at(i)->root->getIndex()%width;
+            // cout<<"index: "<<(*components).at(i)->root->getIndex()<<", n: "<<n<<", m: "<<m<<endl;
+            uchar color = imagen.at<uchar>(n,m);
+            // Vec3b vecColor = imagen.at<Vec3b>(n,m);
+            // cout<<vecColor<<endl;
+
+            paintImg2((*components).at(i)->root,color,imgSegmented,width,height);
+        }
+    }
+    cout<<"components "<<k<<endl;
+
+    string chan = "";
     if(channel == 0)
-        name = "ImgSegmented channel 0";
+    	chan = "0";
     else if(channel == 1)
-        name = "ImgSegmented channel 1";
-    else
-        name = "ImgSegmented channel 2";
+    	chan = "1";
+    else if(channel == 2)
+    	chan = "2";
+
+    string name = "ImgSegmented";
 
     string extension = ".jpg";
     imshow(name,imgSegmented);
-    imwrite(name + extension,imgSegmented);
+    imwrite(name + chan + extension,imgSegmented);
 }
 
-Pair getSegmentation(Mat input, int channel, int type) {
-    GaussianBlur(input, input, Size(7,7), 1.1, 1.1, BORDER_DEFAULT);
+Pair getSegmentation(Mat input, int type) {
+	// input = difusion_anisotropica(input,0.1,20,40);
+    // GaussianBlur(input, input, Size(5,5), 0.8, 0.8, BORDER_DEFAULT);
     // channels[2] = Funciones::difusion_anisotropica(channels[2],0.1, 40, 40);
     // pyrMeanShiftFiltering(imagen,imagen,25,25,3);
     // imshow("Gchannels[2]",channels[2]);
@@ -122,7 +262,7 @@ Pair getSegmentation(Mat input, int channel, int type) {
     int width = input.size().width;
 
     //creation of segmentation 0 with theirs components
-    cout<<"Creating components in Segmentation 0"<<endl;
+    cout<<"Creating first components"<<endl;
     int k = 0;
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
@@ -178,7 +318,10 @@ Pair getSegmentation(Mat input, int channel, int type) {
                 c1->root->indexComponent = index1;
                 c1->setSize(c1->getSize() + c2->getSize());
                 c1->addToTotalVal(c2->getTotalVal());
-                components[index2] = NULL;
+				components.at(index2) = NULL;
+				// if (components.at(index2) == NULL){
+				// 	cout<<"comp index "<<index2<<" is NULL"<<endl;
+				// }
                 // cout<<"children root"<<c1->root->children->size()<<endl;
             }
             // else{
@@ -188,13 +331,17 @@ Pair getSegmentation(Mat input, int channel, int type) {
 
         }
     }
+
+    // cout<<"tamaño vector Nodes: "<<graph.getNodes()->size()<<endl;
+
     // showImageSegmented(&components,graph,width,height, channel);
     // graph.freeClear(edgesG1);
     // graph.freeGraph();
     // S.freeSegmentation();
     // Graph *g = &graph;
+    S->setComponents(components);
 	Pair p = Pair();
-	p.first = &graph;
+	p.first = nodesG;
 	p.second = S;
     return p;
 }
@@ -206,30 +353,59 @@ void segmentarManos(string filename, int type){
 		cout<<"ERROR: la imagen"<<filename<<" no pudo ser encontrada"<<endl;
 		exit(EXIT_FAILURE);
 	}
+
 	Mat imagenLab;
-	cvtColor(imagen,imagenLab,CV_BGR2HSV);
+	cvtColor(imagen,imagenLab,CV_BGR2Lab);
 	// imshow("imagen",imagen);
-	// return;
 	vector<Mat> channels(3);
 
-	split(imagenLab,channels);
+	split(imagen,channels);
+
+	// channels[0] = difusion_anisotropica(channels[0],0.1,10,50);
+	// channels[1] = difusion_anisotropica(channels[1],0.1,10,50);
+	// channels[2] = difusion_anisotropica(channels[2],0.1,10,50);
+	channels[0] = ecualizar(channels[0]);
+	channels[1] = ecualizar(channels[1]);
+	channels[2] = ecualizar(channels[2]);
+	// imshow("channel0",channels[0]);
+	// imshow("channel1",channels[1]);
+	// imshow("channel2",channels[2]);
+	// return;
 
 	int width = imagen.size().width;
 	int height = imagen.size().height;
 
 	if(type == 1) {
-		Pair res0 = getSegmentation(channels[0], 0, type);
-		Pair res1 = getSegmentation(channels[1], 1, type);
-		Pair res2 = getSegmentation(channels[2], 2, type);
+		cout<<"Mode 1"<<endl;
+		cout<<"Channel 0"<<endl;
+		Pair res0 = getSegmentation(channels[0], type);
+		// vector<Component *> res0com = res0.second->getComponents();
+		// showImageSegmented2(&res0com,width,height,channels[0], 0);
+		cout<<"------------------------------------"<<endl;
+		cout<<"Channel 1"<<endl;
+		Pair res1 = getSegmentation(channels[1], type);
+		// vector<Component *> res1com = res1.second->getComponents();
+		// showImageSegmented2(&res1com,width,height,channels[1], 1);
+		cout<<"------------------------------------"<<endl;
+		cout<<"Channel 2"<<endl;
+		Pair res2 = getSegmentation(channels[2], type);
+		// vector<Component *> res2com = res2.second->getComponents();
+		// showImageSegmented2(&res2com,width,height,channels[2], 2);
+		cout<<"------------------------------------"<<endl;
 
-		vector<Node *> *nodesG0 = res0.first->getNodes();
-		vector<Node *> *nodesG1 = res1.first->getNodes();
-		vector<Node *> *nodesG2 = res2.first->getNodes();
-	
+		cout<<"Merge channels"<<endl;
+		vector<Node *> *nodesG0 = res0.first;
+		vector<Node *> *nodesG1 = res1.first;
+		vector<Node *> *nodesG2 = res2.first;
+		cout<<nodesG0->size()<<endl;
+		cout<<nodesG1->size()<<endl;
+		cout<<nodesG2->size()<<endl;
 		Segmentation Super = Segmentation();
 		vector<Node *> *nodesS = new vector<Node *>;
 		nodesS->reserve(width*height);
 
+
+		cout<<"First Components"<<endl;
 		int k = 0;
 		for (int i = 0; i < height; ++i) {
 		    for (int j = 0; j < width; ++j) {
@@ -246,15 +422,17 @@ void segmentarManos(string filename, int type){
 		        k++;
 		    }
 		}
+		int sims = 0;
 		// cout<<"hola"<<endl;
 		vector<Component *> components = Super.getComponents();
-		for (int i = 0; i < height; ++i)
-		{
-			for (int j = 0; j < width; ++j)
-			{
+		for (int i = 0; i < height; ++i) {
+			for (int j = 0; j < width; ++j) {
 				int index_a = j+width*i;
+				// cout<<"holaij "<<i<<","<<j<<index_a<<endl;
 				Node *node_a0 = (*nodesG0)[index_a];
+				// cout<<"hola"<<endl;
 				Node *node_a1 = (*nodesG1)[index_a];
+				// cout<<"hola1"<<endl;
 				Node *node_a2 = (*nodesG2)[index_a];
 
 				int index_aC0 = node_a0->findN(node_a0)->getIndexComponent();
@@ -263,7 +441,6 @@ void segmentarManos(string filename, int type){
 
 				int index_b;
 				int weight;
-				// cout<<"holaij "<<i<<","<<j<<endl;
 				//right
 				if(j < width-1) {
 					// cout<<"holaif1"<<endl;
@@ -272,38 +449,48 @@ void segmentarManos(string filename, int type){
 					Node *node_b0 = (*nodesG0)[index_b];
 					int index_bC0 = node_b0->findN(node_b0)->getIndexComponent();
 					
+					sims = 0;
 					if(index_aC0 == index_bC0){
 						// cout<<"holaif1c0"<<endl;
-						Node *node_b1 = (*nodesG1)[index_b];
-						int index_bC1 = node_b1->findN(node_b1)->getIndexComponent();
-						
-						if(index_aC1 == index_bC1){
-							// cout<<"holaif1c1"<<endl;
-							Node *node_b2 = (*nodesG2)[index_b];
-							int index_bC2 = node_b2->findN(node_b2)->getIndexComponent();
+						sims++;
+					}
+					
+					Node *node_b1 = (*nodesG1)[index_b];
+					int index_bC1 = node_b1->findN(node_b1)->getIndexComponent();
+					
+					if(index_aC1 == index_bC1){
+						// cout<<"holaif1c1"<<endl;
+						sims++;
+					}
+					Node *node_b2 = (*nodesG2)[index_b];
+					int index_bC2 = node_b2->findN(node_b2)->getIndexComponent();
 
-							if(index_aC2 == index_bC2){
-								// cout<<"holaif1c2"<<endl;
-								Node *node_a = (*nodesS).at(index_a);
-								Node *node_b = (*nodesS).at(index_b);
-								
-								int index_aC = node_a->findN(node_a)->getIndexComponent();
-								int index_bC = node_b->findN(node_b)->getIndexComponent();
+					if(index_aC2 == index_bC2){
+						// cout<<"holaif1c2"<<endl;
+						sims++;
+					}
+					
+					if(sims >= 3){
+						Node *node_a = (*nodesS).at(index_a);
+						Node *node_b = (*nodesS).at(index_b);
 						
-								// cout<<"aC "<<index_aC<<" bC "<<index_bC<<endl;
-						
-								if(index_aC != index_bC){
-									Component *ca = components.at(index_aC);
-									Component *cb = components.at(index_bC);
-									ca->unionC(cb->root);
-									ca->root->indexComponent = index_aC;
-									ca->setSize(ca->getSize() + cb->getSize());
-									ca->addToTotalVal(ca->getTotalVal());
-									components[index_bC] = NULL;
-								}
-							}
+						int index_aC = node_a->findN(node_a)->getIndexComponent();
+						int index_bC = node_b->findN(node_b)->getIndexComponent();
+				
+						// cout<<"aC "<<index_aC<<" bC "<<index_bC<<endl;
+				
+						if(index_aC != index_bC){
+							Component *ca = components.at(index_aC);
+							Component *cb = components.at(index_bC);
+							ca->unionC(cb->root);
+							ca->root->indexComponent = index_aC;
+							ca->setSize(ca->getSize() + cb->getSize());
+							ca->addToTotalVal(ca->getTotalVal());
+							components.at(index_bC) = NULL;
 						}
 					}
+					
+
 				}
 
 				//right and down
@@ -314,36 +501,44 @@ void segmentarManos(string filename, int type){
 					Node *node_b0 = (*nodesG0)[index_b];
 					int index_bC0 = node_b0->findN(node_b0)->getIndexComponent();
 					
+					sims = 0;
 					if(index_aC0 == index_bC0){
-						// cout<<"holaif2c0"<<endl;
-						Node *node_b1 = (*nodesG1)[index_b];
-						int index_bC1 = node_b1->findN(node_b1)->getIndexComponent();
-						
-						if(index_aC1 == index_bC1){
-							// cout<<"holaif2c1"<<endl;
-							Node *node_b2 = (*nodesG2)[index_b];
-							int index_bC2 = node_b2->findN(node_b2)->getIndexComponent();
+						// cout<<"holaif1c0"<<endl;
+						sims++;
+					}
+					
+					Node *node_b1 = (*nodesG1)[index_b];
+					int index_bC1 = node_b1->findN(node_b1)->getIndexComponent();
+					
+					if(index_aC1 == index_bC1){
+						// cout<<"holaif1c1"<<endl;
+						sims++;
+					}
+					Node *node_b2 = (*nodesG2)[index_b];
+					int index_bC2 = node_b2->findN(node_b2)->getIndexComponent();
 
-							if(index_aC2 == index_bC2){
-								// cout<<"holaif2c2"<<endl;
-								Node *node_a = (*nodesS).at(index_a);
-								Node *node_b = (*nodesS).at(index_b);
-								
-								int index_aC = node_a->findN(node_a)->getIndexComponent();
-								int index_bC = node_b->findN(node_b)->getIndexComponent();
-		        				// cout<<"aC "<<index_aC<<" bC "<<index_bC<<endl;
-		        				
-		        				if(index_aC != index_bC){
-		        					Component *ca = components[index_aC];
-		        					Component *cb = components[index_bC];
-								
-									ca->unionC(cb->root);
-									ca->root->indexComponent = index_aC;
-									ca->setSize(ca->getSize() + cb->getSize());
-									ca->addToTotalVal(ca->getTotalVal());
-									components[index_bC] = NULL;
-								}
-							}
+					if(index_aC2 == index_bC2){
+						// cout<<"holaif1c2"<<endl;
+						sims++;
+					}
+					
+					if(sims >= 3){
+						Node *node_a = (*nodesS).at(index_a);
+						Node *node_b = (*nodesS).at(index_b);
+						
+						int index_aC = node_a->findN(node_a)->getIndexComponent();
+						int index_bC = node_b->findN(node_b)->getIndexComponent();
+				
+						// cout<<"aC "<<index_aC<<" bC "<<index_bC<<endl;
+				
+						if(index_aC != index_bC){
+							Component *ca = components.at(index_aC);
+							Component *cb = components.at(index_bC);
+							ca->unionC(cb->root);
+							ca->root->indexComponent = index_aC;
+							ca->setSize(ca->getSize() + cb->getSize());
+							ca->addToTotalVal(ca->getTotalVal());
+							components.at(index_bC) = NULL;
 						}
 					}
 				}
@@ -356,36 +551,44 @@ void segmentarManos(string filename, int type){
 					Node *node_b0 = (*nodesG0)[index_b];
 					int index_bC0 = node_b0->findN(node_b0)->getIndexComponent();
 					
+					sims = 0;
 					if(index_aC0 == index_bC0){
-						// cout<<"holaif3c0"<<endl;
-						Node *node_b1 = (*nodesG1)[index_b];
-						int index_bC1 = node_b1->findN(node_b1)->getIndexComponent();
-						
-						if(index_aC1 == index_bC1){
-							// cout<<"holaif3c1"<<endl;
-							Node *node_b2 = (*nodesG2)[index_b];
-							int index_bC2 = node_b2->findN(node_b2)->getIndexComponent();
+						// cout<<"holaif1c0"<<endl;
+						sims++;
+					}
+					
+					Node *node_b1 = (*nodesG1)[index_b];
+					int index_bC1 = node_b1->findN(node_b1)->getIndexComponent();
+					
+					if(index_aC1 == index_bC1){
+						// cout<<"holaif1c1"<<endl;
+						sims++;
+					}
+					Node *node_b2 = (*nodesG2)[index_b];
+					int index_bC2 = node_b2->findN(node_b2)->getIndexComponent();
 
-							if(index_aC2 == index_bC2){
-								// cout<<"holaif3c2"<<endl;
-								Node *node_a = (*nodesS).at(index_a);
-								Node *node_b = (*nodesS).at(index_b);
-								
-								int index_aC = node_a->findN(node_a)->getIndexComponent();
-								int index_bC = node_b->findN(node_b)->getIndexComponent();
-		        				// cout<<"aC "<<index_aC<<" bC "<<index_bC<<endl;
-		        				
-		        				if(index_aC != index_bC){
-		        					Component *ca = components[index_aC];
-		        					Component *cb = components[index_bC];
-								
-									ca->unionC(cb->root);
-									ca->root->indexComponent = index_aC;
-									ca->setSize(ca->getSize() + cb->getSize());
-									ca->addToTotalVal(ca->getTotalVal());
-									components[index_bC] = NULL;
-								}
-							}
+					if(index_aC2 == index_bC2){
+						// cout<<"holaif1c2"<<endl;
+						sims++;
+					}
+					
+					if(sims >= 3){
+						Node *node_a = (*nodesS).at(index_a);
+						Node *node_b = (*nodesS).at(index_b);
+						
+						int index_aC = node_a->findN(node_a)->getIndexComponent();
+						int index_bC = node_b->findN(node_b)->getIndexComponent();
+				
+						// cout<<"aC "<<index_aC<<" bC "<<index_bC<<endl;
+				
+						if(index_aC != index_bC){
+							Component *ca = components.at(index_aC);
+							Component *cb = components.at(index_bC);
+							ca->unionC(cb->root);
+							ca->root->indexComponent = index_aC;
+							ca->setSize(ca->getSize() + cb->getSize());
+							ca->addToTotalVal(ca->getTotalVal());
+							components.at(index_bC) = NULL;
 						}
 					}
 				}
@@ -398,48 +601,65 @@ void segmentarManos(string filename, int type){
 					Node *node_b0 = (*nodesG0)[index_b];
 					int index_bC0 = node_b0->findN(node_b0)->getIndexComponent();
 					
+					sims = 0;
 					if(index_aC0 == index_bC0){
-						// cout<<"holaif4c0"<<endl;
-						Node *node_b1 = (*nodesG1)[index_b];
-						int index_bC1 = node_b1->findN(node_b1)->getIndexComponent();
-						
-						if(index_aC1 == index_bC1){
-							// cout<<"holaif4c1"<<endl;
-							Node *node_b2 = (*nodesG2)[index_b];
-							int index_bC2 = node_b2->findN(node_b2)->getIndexComponent();
+						// cout<<"holaif1c0"<<endl;
+						sims++;
+					}
+					
+					Node *node_b1 = (*nodesG1)[index_b];
+					int index_bC1 = node_b1->findN(node_b1)->getIndexComponent();
+					
+					if(index_aC1 == index_bC1){
+						// cout<<"holaif1c1"<<endl;
+						sims++;
+					}
+					Node *node_b2 = (*nodesG2)[index_b];
+					int index_bC2 = node_b2->findN(node_b2)->getIndexComponent();
 
-							if(index_aC2 == index_bC2){
-								// cout<<"holaif4c2"<<endl;
-								Node *node_a = (*nodesS).at(index_a);
-								Node *node_b = (*nodesS).at(index_b);
-								
-								int index_aC = node_a->findN(node_a)->getIndexComponent();
-								int index_bC = node_b->findN(node_b)->getIndexComponent();
-		        				// cout<<"aC "<<index_aC<<" bC "<<index_bC<<endl;
-		        				
-		        				if(index_aC != index_bC){
-		        					Component *ca = components[index_aC];
-		        					Component *cb = components[index_bC];
-								
-									ca->unionC(cb->root);
-									ca->root->indexComponent = index_aC;
-									ca->setSize(ca->getSize() + cb->getSize());
-									ca->addToTotalVal(ca->getTotalVal());
-									components[index_bC] = NULL;
-								}
-							}
+					if(index_aC2 == index_bC2){
+						// cout<<"holaif1c2"<<endl;
+						sims++;
+					}
+					
+					if(sims >= 3){
+						Node *node_a = (*nodesS).at(index_a);
+						Node *node_b = (*nodesS).at(index_b);
+						
+						int index_aC = node_a->findN(node_a)->getIndexComponent();
+						int index_bC = node_b->findN(node_b)->getIndexComponent();
+				
+						// cout<<"aC "<<index_aC<<" bC "<<index_bC<<endl;
+				
+						if(index_aC != index_bC){
+							Component *ca = components.at(index_aC);
+							Component *cb = components.at(index_bC);
+							ca->unionC(cb->root);
+							ca->root->indexComponent = index_aC;
+							ca->setSize(ca->getSize() + cb->getSize());
+							ca->addToTotalVal(ca->getTotalVal());
+							components.at(index_bC) = NULL;
 						}
 					}
 				}
 			}
 		}
-
-		showImageSegmented(&components,width,height, 0,imagen);
+		cout<<"hola"<<endl;
+		showImageSegmented(&components,width,height,imagen, filename, "1");
 	
 	} else if(type == 2) {
-		Pair res = getSegmentation(imagenLab, 0, type);
+		cout<<"Mode 2"<<endl;
+		Pair res = getSegmentation(imagenLab, type);
 		vector<Component *> components = res.second->getComponents();
-		showImageSegmented(&components,width,height, 0,imagen);
+		cout<<"------------------------------------"<<endl;
+
+		int componentsNull = 0;
+		for(int i=0;i<components.size();i++){
+			if(components.at(i) == NULL)
+				componentsNull++;
+		}
+		cout<<"componentsNull: "<<componentsNull<<endl;
+		showImageSegmented(&components,width,height,imagen, filename, "2");
 	}
     
 
@@ -507,21 +727,6 @@ void tryMST(){
     //cout<<a<<endl;
     int a = Segmentation::getDiffComponents(components.at(0),components.at(5),graph);
     cout<<a<<endl;
-}
-
-Funciones::Funciones(){}
-
-Mat histograma(Mat input){
-	Mat hist = Mat::zeros(256,1,CV_32S);
-	int j = 0, i = 0;
-
-	for(i = 0; i < input.size().height; i++){
-		for(j = 0; j < input.size().width; j++){
-			hist.at<int>(input.at<uchar>(i,j),0)++;
-		}
-	}
-
-	return hist;
 }
 
 int umbralOtsu(Mat imagen){
